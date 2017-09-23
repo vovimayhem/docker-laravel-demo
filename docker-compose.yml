@@ -1,0 +1,80 @@
+version: '3.1'
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  backend:
+  frontend:
+
+services:
+  postgres:
+    image: postgres:9-alpine
+    networks:
+      - backend
+    ports:
+      - ${PHP_DEMO_PG_PORT:-5432}:5432
+    volumes:
+      - ./database/dumps:/database/dumps
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: demo
+      POSTGRES_PASSWORD: 3x4mpl3
+      POSTGRES_DB: demo_development
+
+  redis:
+    image: redis:3-alpine
+    ports:
+      - ${PHP_DEMO_REDIS_PORT:-6379}:6379
+    volumes:
+      - redis_data:/var/lib/redis
+    command: redis-server --appendonly yes
+    networks:
+      - backend
+
+  web: &app_base
+    image: docker-monterrey/php-demo:development
+    build:
+      context: .
+      dockerfile: dev.Dockerfile
+    networks:
+      - backend
+      - frontend
+    ports:
+      - ${PHP_DEMO_WEB_PORT:-8000}:8000
+    volumes:
+      - .:/usr/src
+    command: php artisan serve --host=0.0.0.0 --port=8000
+    depends_on:
+      - postgres
+    environment:
+      APP_DEBUG: 'true'
+      APP_LOG_LEVEL: debug
+      APP_URL: http://localhost:8000
+
+      BROADCAST_DRIVER: log
+      CACHE_DRIVER: file
+      SESSION_DRIVER: file
+      QUEUE_DRIVER: sync
+
+      REDIS_HOST: redis
+      REDIS_PASSWORD: null
+      REDIS_PORT: 6379
+
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_USERNAME: demo
+      DB_PASSWORD: 3x4mpl3
+      DB_DATABASE: php_demo_development
+
+      MAIL_DRIVER: smtp
+      MAIL_HOST: mailtrap.io
+      MAIL_PORT: 2525
+      MAIL_USERNAME: null
+      MAIL_PASSWORD: null
+      MAIL_ENCRYPTION: null
+
+      PUSHER_APP_ID:
+      PUSHER_KEY:
+      PUSHER_SECRET:
