@@ -20,14 +20,14 @@ RUN set -ex && apk add --no-cache \
   ca-certificates \
   less \
   openssl \
-  postgresql-dev \
+  mysql-dev \
   tzdata \
   zlib-dev
 
 # 6: Install PHP packages:
 RUN set -ex && docker-php-ext-install \
   zip \
-  pdo_pgsql
+  pdo_mysql
 
 # 7: Explicitly set user/group IDs
 RUN addgroup -g 1000 demo \

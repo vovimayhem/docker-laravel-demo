@@ -1,7 +1,7 @@
 version: '3.1'
 
 volumes:
-  postgres_data:
+  mysql_data:
   redis_data:
 
 networks:
@@ -9,19 +9,21 @@ networks:
   frontend:
 
 services:
-  postgres:
-    image: postgres:9-alpine
+  mysql:
+    image: mysql:5
     networks:
       - backend
     ports:
-      - ${PHP_DEMO_PG_PORT:-5432}:5432
+      - ${PHP_DEMO_MYSQL_PORT:-3306}:3306
     volumes:
       - ./database/dumps:/database/dumps
-      - postgres_data:/var/lib/postgresql/data
+      - mysql_data:/var/lib/mysql
     environment:
-      POSTGRES_USER: demo
-      POSTGRES_PASSWORD: 3x4mpl3
-      POSTGRES_DB: demo_development
+      MYSQL_USER: demo
+      MYSQL_PASSWORD: 3x4mpl3
+      MYSQL_DATABASE: demo_development
+      MYSQL_ROOT_PASSWORD: 4dm1n15tr4t0r
+      # MYSQL_ALLOW_EMPTY_PASSWORD: and MYSQL_RANDOM_ROOT_PASSWORD
 
   redis:
     image: redis:3-alpine
@@ -47,11 +49,16 @@ services:
       - .:/usr/src
     command: php artisan serve --host=0.0.0.0 --port=8000
     depends_on:
-      - postgres
+      - mysql
+    # links:
+    #   - mysql:mysql.local
     environment:
       APP_DEBUG: 'true'
       APP_LOG_LEVEL: debug
       APP_URL: http://localhost:8000
+
+
+      APP_KEY: base64:5aoHpAok0Sjdq2Nhx44MvDzMcnAqZ/qzRxfHG++S8wU=
 
       BROADCAST_DRIVER: log
       CACHE_DRIVER: file
@@ -62,11 +69,11 @@ services:
       REDIS_PASSWORD: null
       REDIS_PORT: 6379
 
-      DB_CONNECTION: pgsql
-      DB_HOST: postgres
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
       DB_USERNAME: demo
       DB_PASSWORD: 3x4mpl3
-      DB_DATABASE: php_demo_development
+      DB_DATABASE: demo_development
 
       MAIL_DRIVER: smtp
       MAIL_HOST: mailtrap.io
