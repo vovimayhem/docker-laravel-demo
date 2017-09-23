@@ -12,3 +12,4 @@ yarn-error.log
 .env
 /database/dumps
 .*_hist*
+.composer
