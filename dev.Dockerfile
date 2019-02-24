@@ -1,4 +1,4 @@
-FROM php:alpine
+FROM php:5-alpine
 
 WORKDIR /usr/src
 
