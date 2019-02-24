@@ -20,6 +20,7 @@ RUN set -ex && apk add --no-cache \
   ca-certificates \
   less \
   openssl \
+  libzip-dev \
   mysql-dev \
   tzdata \
   zlib-dev
