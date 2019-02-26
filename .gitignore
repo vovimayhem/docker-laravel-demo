@@ -12,3 +12,6 @@ yarn-error.log
 
 # Ignore shell history files
 /.*_hist*
+
+# Ignore temporary folder contents:
+/tmp/*
