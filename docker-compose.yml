@@ -1,8 +1,10 @@
-version: '3.1'
+version: "2.4"
 
 volumes:
   mysql_data:
   redis_data:
+  app_node_modules:
+  composer_vendor:
 
 networks:
   backend:
@@ -10,49 +12,56 @@ networks:
 
 services:
   mysql:
-    image: mysql:5
-    networks:
-      - backend
-    ports:
-      - ${PHP_DEMO_MYSQL_PORT:-3306}:3306
-    volumes:
-      - ./database/dumps:/database/dumps
-      - mysql_data:/var/lib/mysql
-    environment:
-      MYSQL_USER: demo
-      MYSQL_PASSWORD: 3x4mpl3
-      MYSQL_DATABASE: demo_development
-      MYSQL_ROOT_PASSWORD: 4dm1n15tr4t0r
-      # MYSQL_ALLOW_EMPTY_PASSWORD: and MYSQL_RANDOM_ROOT_PASSWORD
+    extends:
+      file: common-services.yml
+      service: mysql
+    networks: [ "backend" ]
 
   redis:
-    image: redis:3-alpine
-    ports:
-      - ${PHP_DEMO_REDIS_PORT:-6379}:6379
-    volumes:
-      - redis_data:/var/lib/redis
-    command: redis-server --appendonly yes
-    networks:
-      - backend
+    extends:
+      file: common-services.yml
+      service: redis
+    networks: [ "backend" ]
 
   web: &app_base
     image: docker-monterrey/php-demo:development
     build:
       context: .
-      dockerfile: dev.Dockerfile
-    networks:
-      - backend
-      - frontend
+      dockerfile: Dockerfile
+      target: development
+      args:
+      - DEVELOPER_UID=${UID:-1000}
+      - DEVELOPER_USER=${USER:-you}
+    networks: [ "backend", "frontend" ]
     ports:
-      - ${PHP_DEMO_WEB_PORT:-8000}:8000
+    - ${PHP_DEMO_WEB_PORT:-8000}:8000
     volumes:
-      - .:/usr/src
-    entrypoint: /usr/src/entrypoint-dev
+    # Mount our app code into the "/usr/src" folder at our app containers:
+    - .:/usr/src
+
+    # Replace the local 'node_modules' folder with a Docker volume, so we can
+    # run the frontend app either from the host (i.e. macOS) or using containers
+    # without having one or another clobbering the npm packages or conflicting
+    # versions for macOS / Linux:
+    - app_node_modules:/usr/src/node_modules
+
+    # Replace the local 'vendor' folder with another Docker volume, so we can
+    # run the frontend app either from the host (i.e. macOS) or using containers
+    # without having one or another clobbering the npm packages or conflicting
+    # versions for macOS / Linux:
+    - composer_vendor:/usr/src/vendor
+
+    entrypoint: /usr/src/bin/dev-entrypoint.sh
     command: php artisan serve --host=0.0.0.0 --port=8000
-    depends_on:
-      - mysql
-    # links:
-    #   - mysql:mysql.local
+    depends_on: [ "mysql", "redis" ]
+
+    # Keep the stdin open, so we can attach to our app container's process
+    # and do things such as byebug, etc:
+    stdin_open: true
+
+    # Enable sending signals (CTRL+C, CTRL+P + CTRL+Q) into the container:
+    tty: true
+
     environment:
       APP_DEBUG: 'true'
       APP_LOG_LEVEL: debug
@@ -72,7 +81,7 @@ services:
       DB_CONNECTION: mysql
       DB_HOST: mysql
       DB_USERNAME: demo
-      DB_PASSWORD: 3x4mpl3
+      DB_PASSWORD: 3x4mpl3P455w0rd
       DB_DATABASE: demo_development
 
       MAIL_DRIVER: smtp

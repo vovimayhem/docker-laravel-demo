@@ -1,0 +1,20 @@
+#! /bin/sh
+
+
+set -e
+
+CALLER=$(whoami)
+
+if [ "$CALLER" = "root" ] && [ ! -z "$DEVELOPER_USER" ]
+then
+  if [ "$1" = "install" ] || [ "$1" = "require" ]
+  then
+    chgrp -R wheel /usr/src/vendor
+    chmod g+w /usr/src/vendor
+  fi
+  set -- /sbin/su-exec $DEVELOPER_USER /usr/local/bin/composer "$@"
+else
+  set -- /usr/local/bin/composer "$@"
+fi
+
+exec "$@"

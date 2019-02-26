@@ -30,17 +30,22 @@ then
   # app containers will try to install gems and setup the database concurrently:
   lock_setup
 
-  # 6: Check if the database exists, or setup the database if it doesn't, as it is
-  # the case when the project runs for the first time.
+  # 5: Check if the gem dependencies are met, or install
+  composer install
+
+  # 6: Check yarn dependencies, or install:
+  check-dependencies || yarn install
+
+  # 7: Check if the database exists, or setup the database if it doesn't, as it
+  # is the case when the project runs for the first time.
   #
   # We'll use a custom script `checkdb` (inside our app's `bin` folder), instead
   # of running `rails db:version` to avoid loading the entire rails app for this
   # simple check:
-  php artisan migrate --force -n
+  php artisan migrate
 
-  # 7: 'Unlock' the setup process:
+  # 8: 'Unlock' the setup process:
   unlock_setup
-
 fi
 
 # 9: Execute the given or default command:

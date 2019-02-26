@@ -1,1 +1,16 @@
-/vendor/*
+Dockerfile
+docker-compose.yml
+
+# Ignore dotenv files
+/.env
+
+# Ignore shell history files
+/.*_hist*
+
+# Ignore composer vendor directory:
+/vendor
+
+# Ignore git files
+/.git
+/.gitignore
+/.gitattributes

@@ -1,0 +1,26 @@
+version: "2.4"
+
+services:
+  mysql:
+    image: mysql:5.7
+    networks: [ "backend" ]
+    ports:
+    - ${PHP_DEMO_MYSQL_PORT:-3306}:3306
+    volumes:
+    - mysql_data:/var/lib/mysql
+    - ./database/dumps:/database/dumps
+    environment:
+      MYSQL_USER: demo
+      MYSQL_PASSWORD: 3x4mpl3P455w0rd
+      MYSQL_DATABASE: demo_development
+      MYSQL_ROOT_PASSWORD: 3x4mpl3P455w0rd
+      # MYSQL_ALLOW_EMPTY_PASSWORD: and MYSQL_RANDOM_ROOT_PASSWORD
+
+  redis:
+    image: redis:3-alpine
+    ports:
+    - ${PHP_DEMO_REDIS_PORT:-6379}:6379
+    volumes:
+    - redis_data:/var/lib/redis
+    command: redis-server --appendonly yes
+    networks: [ "backend" ]

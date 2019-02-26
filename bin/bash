@@ -1,0 +1,6 @@
+#! /bin/sh
+
+# This script is used to catch any calls to 'bash' and converts them to 'ash',
+# in case there's somebody used to call 'bash' to get into the container...
+echo "Using Alpine's Almquist Shell ('ash') instead of 'bash'..."
+exec /bin/ash $@

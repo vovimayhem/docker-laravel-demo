@@ -1,46 +1,83 @@
-FROM php:alpine as builder
+# I: Runtime Stage: ============================================================
+# This is the stage where we build the runtime base image, which is used as the
+# common ancestor by the rest of the stages, and contains the minimal runtime
+# dependencies required for the application to run:
 
+# Step 1: Use the official PHP 7.3.x Alpine image as base:
+FROM php:7.3-alpine AS runtime
+
+# Step 2: We'll set '/usr/src' path as the working directory:
 WORKDIR /usr/src
 
-# 3: We'll add the app's binaries path to $PATH:
+# Step 3: We'll set the working dir as HOME and add the app's binaries path to
+# $PATH:
 ENV HOME=/usr/src \
-    PATH=/usr/src:/usr/src/vendor/bin:$PATH
+    COMPOSER_HOME=/usr/local/composer \
+    PATH=/usr/src/bin:/usr/src/vendor/bin:/usr/local/composer/vendor/bin:$PATH
 
-# 4: Install composer:
-RUN set -ex \
-  && export COMPOSER_VERSION=1.5.2 \
-  && export COMPOSER_SHA256=c0a5519c768ef854913206d45bd360efc2eb4a3e6eb1e1c7d0a4b5e0d3bbb31f \
-  && curl -o /usr/local/bin/composer "https://getcomposer.org/download/${COMPOSER_VERSION}/composer.phar" \
-  && echo "${COMPOSER_SHA256}  /usr/local/bin/composer" | sha256sum -c - \
-  && chmod a+x /usr/local/bin/composer
-
-# 5: Install dependency packages:
-RUN set -ex && apk add --no-cache \
-  build-base \
+# Step 4: Install the common runtime dependencies:
+RUN apk add --no-cache \
   ca-certificates \
   less \
+  nodejs \
+  npm \
+  mariadb-client \
   openssl \
-  mysql-dev \
+  su-exec \
   tzdata \
-  zlib-dev
+  zlib
 
-# 6: Install PHP packages:
+# II: Development Stage: =======================================================
+# In this stage we'll build the image used for development, including compilers,
+# and development libraries. This is also a first step for building a releasable
+# Docker image:
+
+# Step 5: Start off from the "runtime" stage:
+FROM runtime AS development
+
+# Step 6: Install the development dependency packages with alpine package
+# manager:
+RUN apk add --no-cache \
+    build-base \
+    chromium \
+    chromium-chromedriver \
+    git \
+    libzip-dev \
+    mariadb-dev \
+    yarn \
+    zlib-dev
+
+# Step 7: Fix npm uid-number error
+# - see https://github.com/npm/uid-number/issues/7
+RUN npm config set unsafe-perm true
+
+# Step 8: Install the 'check-dependencies' node package:
+RUN npm install -g check-dependencies
+
+# Step 9: Install PHP packages required by laravel:
 RUN set -ex && docker-php-ext-install \
-  zip \
-  pdo_mysql
+  bcmath \
+  pdo_mysql \
+  zip
 
-# 9: Copy project source:
-ADD . /usr/src
+# Step 10: Install composer:
+RUN set -ex \
+ && export COMPOSER_VERSION=1.8.4 \
+ && export COMPOSER_SHA256=1722826c8fbeaf2d6cdd31c9c9af38694d6383a0f2bf476fe6bbd30939de058a \
+ && curl -o /usr/local/bin/composer "https://getcomposer.org/download/${COMPOSER_VERSION}/composer.phar" \
+ && echo "${COMPOSER_SHA256}  /usr/local/bin/composer" | sha256sum -c - \
+ && chmod a+x /usr/local/bin/composer
 
-# 10: Install composer packages:
-RUN set -ex && composer install
+ARG DEVELOPER_USER="you"
+ARG DEVELOPER_UID="1000"
 
-# 7: Explicitly set user/group IDs
-RUN addgroup -g 1000 demo \
-  && adduser -H -D -G demo -u 1000 demo \
-  && chown -R demo:demo /usr/src
+RUN adduser -D -u $DEVELOPER_UID $DEVELOPER_USER \
+ && addgroup $DEVELOPER_USER wheel
 
-# 8: Set the user to 'demo':
-USER demo
+ENV DEVELOPER_USER=$DEVELOPER_USER
 
-ENTRYPOINT /usr/src/entrypoint
+# Step X: Create the COMPOSER_HOME directory (where the global packages will be
+# in):
+RUN mkdir -p $COMPOSER_HOME \
+ && chgrp wheel $COMPOSER_HOME \
+ && chmod g+rws $COMPOSER_HOME
