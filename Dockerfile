@@ -1,10 +1,14 @@
+# Other articles read on my research about laravel + Docker:
+#  - https://laravel-news.com/multi-stage-docker-builds-for-laravel
+#  - https://www.pascallandau.com/blog/php-php-fpm-and-nginx-on-docker-in-windows-10/
+#
 # I: Runtime Stage: ============================================================
 # This is the stage where we build the runtime base image, which is used as the
 # common ancestor by the rest of the stages, and contains the minimal runtime
-# dependencies required for the application to run:
+# dependencies required for the application to run in production:
 
 # Step 1: Use the official PHP 7.3.x Alpine image as base:
-FROM php:7.3-alpine AS runtime
+FROM php:7.3-fpm-alpine AS runtime
 
 # Step 2: We'll set '/usr/src' path as the working directory:
 WORKDIR /usr/src
@@ -19,10 +23,10 @@ ENV HOME=/usr/src \
 RUN apk add --no-cache \
   ca-certificates \
   less \
-  nodejs \
-  npm \
   mariadb-client \
+  nginx \
   openssl \
+  supervisor \
   su-exec \
   tzdata \
   zlib
@@ -44,6 +48,8 @@ RUN apk add --no-cache \
     git \
     libzip-dev \
     mariadb-dev \
+    nodejs \
+    npm \
     yarn \
     zlib-dev
 
@@ -81,3 +87,95 @@ ENV DEVELOPER_USER=$DEVELOPER_USER
 RUN mkdir -p $COMPOSER_HOME \
  && chgrp wheel $COMPOSER_HOME \
  && chmod g+rws $COMPOSER_HOME
+
+# Stage III: Testing
+FROM development AS testing
+
+# Step X: Copy the composer files to a temporary folder, in preparation of
+# composer install:
+COPY composer.* package.json yarn.lock /usr/src/
+
+RUN mkdir -p /usr/src/vendor /usr/src/node_modules \
+ && chown -R $DEVELOPER_USER /usr/src
+
+RUN su-exec $DEVELOPER_USER composer install \
+    --ignore-platform-reqs \
+    --no-autoloader \
+    --no-interaction \
+    --no-plugins \
+    --no-scripts \
+    --prefer-dist
+
+RUN su-exec $DEVELOPER_USER yarn install
+
+# Step 13: Copy the rest of the application code
+COPY . /usr/src/
+
+# IV: Builder stage: ===========================================================
+# In this stage we'll compile assets coming from the project's source, remove
+# development libraries, and other cleanup tasks, in preparation for the final
+# "release" image:
+
+# Step 15: Start off from the development stage image:
+FROM testing AS builder
+
+# Step 16: Precompile assets and remove compiled source code:
+RUN yarn production && rm -rf resources/js resources/sass
+
+# Step 17: Remove installed composer libraries that belong to the development
+# group - we'll copy the remaining composer libraries into the deployable image
+# on the next stage - see https://laravel.com/docs/5.7/deployment#optimization:
+RUN composer install --optimize-autoloader --no-dev \
+ && php artisan config:cache
+ # TODO: Use php artisan route:cache (remove route that uses Closure?)
+
+# Step 18: Remove files not used on release image:
+RUN rm -rf \
+    .env.example \
+    .npm \
+    .npmrc \
+    bin/composer \
+    bin/dev-entrypoint.sh \
+    composer.* \
+    node_modules \
+    tests \
+    tmp/* \
+    webpack.mix.js \
+    yarn.lock
+
+# V: Release stage: ============================================================
+# In this stage, we build the final, deployable Docker image, which will be
+# smaller than the images generated on previous stages:
+
+# Step 19: Start off from the runtime stage image:
+FROM runtime AS release
+
+# Step 20: Copy from app code from the "builder" stage, which at this point
+# should have the assets from the asset pipeline already compiled:
+COPY --from=builder --chown=www-data:www-data /usr/src /usr/src
+
+# Step 22: Set the APP_ENV and PORT default values:
+ENV APP_ENV=production PORT=8000
+
+# Step 23: Generate the temporary directories in case they don't already exist:
+RUN su-exec www-data mkdir -p /usr/src/tmp/pids /usr/src/tmp/sockets /usr/src/tmp/config \
+ && su-exec www-data touch /usr/src/tmp/fastcgi_params
+
+# Step 25: Set the default command:
+ENTRYPOINT [ "/usr/src/bin/entrypoint.sh" ]
+CMD [ "web" ]
+
+# Step 26 thru 30: Add label-schema.org labels to identify the build info:
+ARG SOURCE_BRANCH="master"
+ARG SOURCE_COMMIT="000000"
+ARG BUILD_DATE="2017-09-26T16:13:26Z"
+ARG IMAGE_NAME="vovimayhem/php-demo:latest"
+
+LABEL org.label-schema.build-date=$BUILD_DATE \
+      org.label-schema.name="Vovimayhem's Laravel Demo" \
+      org.label-schema.description="Vovimayhem's Laravel Demo" \
+      org.label-schema.vcs-url="https://github.com/docker-monterrey/php-demo.git" \
+      org.label-schema.vcs-ref=$SOURCE_COMMIT \
+      org.label-schema.schema-version="1.0.0-rc1" \
+      build-target="release" \
+      build-branch=$SOURCE_BRANCH

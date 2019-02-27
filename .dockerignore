@@ -1,5 +1,8 @@
 Dockerfile
 docker-compose.yml
+common-services.yml
+benchmark-compose.yml
+stack.yml
 
 # Ignore dotenv files
 /.env
@@ -10,6 +13,9 @@ docker-compose.yml
 # Ignore composer vendor directory:
 /vendor
 
+# Ignore the local node_modules entirely:
+/node_modules
+
 # Ignore git files
 /.git
 /.gitignore
@@ -18,3 +24,7 @@ docker-compose.yml
 # Ignore compiled css/js files
 /public/css
 /public/js
+
+# Ignore node HOME artifacts:
+/.config
+/.npm

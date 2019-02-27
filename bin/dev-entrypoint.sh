@@ -21,7 +21,7 @@ trap unlock_setup HUP INT QUIT KILL TERM EXIT
 # 7: Specify a default command, in case it wasn't issued:
 if [ -z "$1" ]; then set -- php artisan serve --host=0.0.0.0 --port=8000 "$@"; fi
 
-if [ "$1" = "php" ] || [ "$1" = "artisan" ]
+if [ "$1" = "php" ] || [ "$1" = "artisan" ] || ([ "$1" = "yarn" ] && [ "$2" = "run" ])
 then
   # 3: Wait until the setup 'lock' file no longer exists:
   while [ -f $APP_SETUP_LOCK ]; do wait_setup; done
@@ -30,11 +30,19 @@ then
   # app containers will try to install gems and setup the database concurrently:
   lock_setup
 
-  # 5: Check if the gem dependencies are met, or install
-  composer install
+  # 5: Check if the composer dependencies are met, or install
+  composer install \
+    --ignore-platform-reqs \
+    --no-interaction \
+    --no-plugins \
+    --no-scripts \
+    --prefer-dist
 
   # 6: Check yarn dependencies, or install:
-  check-dependencies || yarn install
+  if [ "$1" = "yarn" ] && [ "$2" = "run" ]
+  then
+    check-dependencies || yarn install
+  fi
 
   # 7: Check if the database exists, or setup the database if it doesn't, as it
   # is the case when the project runs for the first time.
