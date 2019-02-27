@@ -15,3 +15,7 @@ yarn-error.log
 
 # Ignore temporary folder contents:
 /tmp/*
+
+# Ignore compiled css/js files (Why doesn't laravel ignore these by default?)
+/public/css
+/public/js

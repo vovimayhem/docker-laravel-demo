@@ -14,3 +14,7 @@ docker-compose.yml
 /.git
 /.gitignore
 /.gitattributes
+
+# Ignore compiled css/js files
+/public/css
+/public/js
