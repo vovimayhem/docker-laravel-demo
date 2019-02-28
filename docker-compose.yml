@@ -88,6 +88,8 @@ services:
       DB_PASSWORD: 3x4mpl3P455w0rd
       DB_DATABASE: demo_development
 
+      LOG_CHANNEL: stdout
+
       MAIL_DRIVER: smtp
       MAIL_HOST: mailtrap.io
       MAIL_PORT: 2525
