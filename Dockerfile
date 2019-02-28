@@ -23,6 +23,7 @@ ENV HOME=/usr/src \
 RUN apk add --no-cache \
   ca-certificates \
   less \
+  libzip \
   mariadb-client \
   nginx \
   openssl \
@@ -150,6 +151,10 @@ RUN rm -rf \
 # Step 19: Start off from the runtime stage image:
 FROM runtime AS release
 
+# Copy the previously-compiled PHP extensions & their configurations:
+COPY --from=builder /usr/local/lib/php/extensions /usr/local/lib/php/extensions
+COPY --from=builder /usr/local/etc/php/conf.d /usr/local/etc/php/conf.d
+
 # Step 20: Copy from app code from the "builder" stage, which at this point
 # should have the assets from the asset pipeline already compiled:
 COPY --from=builder --chown=www-data:www-data /usr/src /usr/src
@@ -158,8 +163,7 @@ COPY --from=builder --chown=www-data:www-data /usr/src /usr/src
 ENV APP_ENV=production PORT=8000
 
 # Step 23: Generate the temporary directories in case they don't already exist:
-RUN su-exec www-data mkdir -p /usr/src/tmp/pids /usr/src/tmp/sockets /usr/src/tmp/config \
- && su-exec www-data touch /usr/src/tmp/fastcgi_params
+RUN su-exec www-data mkdir -p /usr/src/tmp/pids /usr/src/tmp/sockets
 
 # Step 25: Set the default command:
 ENTRYPOINT [ "/usr/src/bin/entrypoint.sh" ]

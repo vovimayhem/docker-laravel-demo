@@ -19,7 +19,7 @@ configure_nginx() {
 }
 
 configure_php_fpm() {
-  php -f config/php-fpm.conf > /usr/src/tmp/config/php-fpm.conf
+  php -f config/php-fpm.conf > /usr/local/etc/php-fpm.conf
 }
 
 cache_laravel_config() {
