@@ -22,6 +22,10 @@ configure_php_fpm() {
   php -f config/php-fpm.conf > /usr/src/tmp/config/php-fpm.conf
 }
 
+cache_laravel_config() {
+  php artisan config:cache
+}
+
 # 2: 'Unlock' the setup process if the script exits prematurely:
 trap unlock_setup HUP INT QUIT KILL TERM EXIT
 
@@ -29,9 +33,11 @@ case $1 in
 	web)
 		configure_nginx
     configure_php_fpm
+    cache_laravel_config
     set -- supervisord -c config/supervisord.conf
 		;;
 	worker)
+    cache_laravel_config
 		set -- su-exec www-data php artisan queue:work "$@"
 		;;
 esac

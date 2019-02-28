@@ -92,13 +92,14 @@ RUN mkdir -p $COMPOSER_HOME \
 FROM development AS testing
 
 # Step X: Copy the composer files to a temporary folder, in preparation of
-# composer install:
+# composer install
 COPY composer.* package.json yarn.lock /usr/src/
 
-RUN mkdir -p /usr/src/vendor /usr/src/node_modules \
- && chown -R $DEVELOPER_USER /usr/src
+RUN mkdir -p /usr/src/vendor /usr/src/node_modules
 
-RUN su-exec $DEVELOPER_USER composer install \
+# We'll run 'composer install' without pluugins nor scripts -
+# see https://getcomposer.org/doc/faqs/how-to-install-untrusted-packages-safely.md
+RUN composer install \
     --ignore-platform-reqs \
     --no-autoloader \
     --no-interaction \
@@ -106,7 +107,7 @@ RUN su-exec $DEVELOPER_USER composer install \
     --no-scripts \
     --prefer-dist
 
-RUN su-exec $DEVELOPER_USER yarn install
+RUN yarn install
 
 # Step 13: Copy the rest of the application code
 COPY . /usr/src/
@@ -125,19 +126,18 @@ RUN yarn production && rm -rf resources/js resources/sass
 # Step 17: Remove installed composer libraries that belong to the development
 # group - we'll copy the remaining composer libraries into the deployable image
 # on the next stage - see https://laravel.com/docs/5.7/deployment#optimization:
-RUN composer install --optimize-autoloader --no-dev \
- && php artisan config:cache
- # TODO: Use php artisan route:cache (remove route that uses Closure?)
+RUN rm -rf bin/composer \
+ && composer install --optimize-autoloader --no-dev
 
 # Step 18: Remove files not used on release image:
 RUN rm -rf \
+    .config \
     .env.example \
     .npm \
     .npmrc \
-    bin/composer \
     bin/dev-entrypoint.sh \
-    composer.* \
     node_modules \
+    php.tar.* \
     tests \
     tmp/* \
     webpack.mix.js \
