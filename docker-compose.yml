@@ -14,6 +14,8 @@ networks:
   frontend:
 
 services:
+  # For the MySQL and Redis services, we'll use the definitions found in
+  # `common-services.yml`:
   mysql:
     extends:
       file: common-services.yml
@@ -26,7 +28,7 @@ services:
       service: redis
     networks: [ "backend" ]
 
-  web: &app_base
+  test: &app_base
     image: docker-monterrey/php-demo:development
     build:
       context: .
@@ -36,8 +38,7 @@ services:
       - DEVELOPER_UID=${UID:-1000}
       - DEVELOPER_USER=${USER:-you}
     networks: [ "backend", "frontend" ]
-    ports:
-    - ${PHP_DEMO_WEB_PORT:-8000}:8000
+    depends_on: [ "mysql", "redis", "webpack" ]
     volumes:
     # Mount our app code into the "/usr/src" folder at our app containers:
     - .:/usr/src
@@ -55,8 +56,7 @@ services:
     - composer_vendor:/usr/src/vendor
 
     entrypoint: /usr/src/bin/dev-entrypoint.sh
-    command: php artisan serve --host=0.0.0.0 --port=8000
-    depends_on: [ "mysql", "redis", "webpack" ]
+    command: phpunit-watcher watch
 
     # Keep the stdin open, so we can attach to our app container's process
     # and do things such as byebug, etc:
@@ -65,12 +65,11 @@ services:
     # Enable sending signals (CTRL+C, CTRL+P + CTRL+Q) into the container:
     tty: true
 
-    environment:
-      APP_ENV: development
+    environment: &app_env
+      APP_ENV: test
       APP_DEBUG: 'true'
       APP_LOG_LEVEL: debug
       APP_URL: http://localhost:8000
-
 
       APP_KEY: base64:5aoHpAok0Sjdq2Nhx44MvDzMcnAqZ/qzRxfHG++S8wU=
 
@@ -86,7 +85,7 @@ services:
       DB_HOST: mysql
       DB_USERNAME: demo
       DB_PASSWORD: 3x4mpl3P455w0rd
-      DB_DATABASE: demo_development
+      DB_DATABASE: demo_test
 
       LOG_CHANNEL: stdout
 
@@ -101,9 +100,19 @@ services:
       PUSHER_KEY:
       PUSHER_SECRET:
 
+  web:
+    <<: *app_base
+    ports:
+    - ${PHP_DEMO_WEB_PORT:-8000}:8000
+    command: php artisan serve --host=0.0.0.0 --port=8000
+    environment:
+      <<: *app_env
+      APP_ENV: development
+      APP_KEY: base64:5aoHpAok0Sjdq2Nhx44MvDzMcnAqZ/qzRxfHG++S8wU=
+      DB_DATABASE: demo_development
+
   webpack:
     <<: *app_base
-    ports: []
     depends_on: []
     # We can also use 'watch-poll' for those running on VirtualBox...
     command: yarn run ${MIX_WATCH_TASK:-watch}
