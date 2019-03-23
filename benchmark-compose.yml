@@ -1,0 +1,81 @@
+version: "2.4"
+
+volumes:
+  mysql_data:
+  redis_data:
+  app_node_modules:
+  composer_vendor:
+
+networks:
+  backend:
+  frontend:
+
+services:
+  mysql:
+    extends:
+      file: common-services.yml
+      service: mysql
+    networks: [ "backend" ]
+
+  redis:
+    extends:
+      file: common-services.yml
+      service: redis
+    networks: [ "backend" ]
+
+  web: &app_base
+    image: docker-monterrey/php-demo:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: release
+      args:
+      - DEVELOPER_UID=${UID:-1000}
+      - DEVELOPER_USER=${USER:-you}
+    networks: [ "backend", "frontend" ]
+    ports:
+    - ${PHP_DEMO_WEB_PORT:-8000}:8000
+    command: web
+    depends_on: [ "mysql", "redis" ]
+
+    # Keep the stdin open, so we can attach to our app container's process
+    # and do things such as byebug, etc:
+    stdin_open: true
+
+    # Enable sending signals (CTRL+C, CTRL+P + CTRL+Q) into the container:
+    tty: true
+
+    environment:
+      APP_ENV: production
+      APP_DEBUG: 'true'
+      APP_LOG_LEVEL: debug
+      APP_URL: http://localhost:8000
+
+      APP_KEY: base64:5aoHpAok0Sjdq2Nhx44MvDzMcnAqZ/qzRxfHG++S8wU=
+
+      CACHE_DRIVER: redis
+      SESSION_DRIVER: redis
+      QUEUE_DRIVER: redis
+
+      REDIS_HOST: redis
+      REDIS_PASSWORD: null
+      REDIS_PORT: 6379
+
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_USERNAME: demo
+      DB_PASSWORD: 3x4mpl3P455w0rd
+      DB_DATABASE: demo_development
+
+      LOG_CHANNEL: stdout
+
+      MAIL_DRIVER: smtp
+      MAIL_HOST: mailtrap.io
+      MAIL_PORT: 2525
+      MAIL_USERNAME: null
+      MAIL_PASSWORD: null
+      MAIL_ENCRYPTION: null
+
+      PUSHER_APP_ID:
+      PUSHER_KEY:
+      PUSHER_SECRET:

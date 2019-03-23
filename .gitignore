@@ -3,13 +3,24 @@
 /public/storage
 /storage/*.key
 /vendor
-/.idea
-/.vagrant
+.env
+.phpunit.result.cache
 Homestead.json
 Homestead.yaml
 npm-debug.log
 yarn-error.log
-.env
-/database/dumps
-.*_hist*
-.composer
+
+# Ignore shell history files
+/.*_hist*
+
+# Ignore temporary folder contents:
+/tmp/*
+
+# Ignore compiled css/js files (Why doesn't laravel ignore these by default?)
+/public/css
+/public/js
+public/mix-manifest.json
+
+# Ignore node HOME artifacts:
+/.config
+/.npm
