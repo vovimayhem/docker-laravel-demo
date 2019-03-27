@@ -21,7 +21,7 @@ trap unlock_setup HUP INT QUIT KILL TERM EXIT
 # 7: Specify a default command, in case it wasn't issued:
 if [ -z "$1" ]; then set -- php artisan serve --host=0.0.0.0 --port=8000 "$@"; fi
 
-if [ "$1" = "php" ] || [ "$1" = "artisan" ] || ([ "$1" = "yarn" ] && [ "$2" = "run" ])
+if [ "$1" = "php" ] || [ "$1" = "artisan" ] || [ "$1" = "phpunit-watcher" ] || ([ "$1" = "yarn" ] && [ "$2" = "run" ])
 then
   # 3: Wait until the setup 'lock' file no longer exists:
   while [ -f $APP_SETUP_LOCK ]; do wait_setup; done

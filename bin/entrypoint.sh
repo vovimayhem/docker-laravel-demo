@@ -38,8 +38,12 @@ case $1 in
 		;;
 	worker)
     cache_laravel_config
-		set -- su-exec www-data php artisan queue:work "$@"
-		;;
+    set -- su-exec www-data php artisan queue:work "$@"
+    ;;
+  migrate)
+    cache_laravel_config
+    set -- su-exec www-data php artisan migrate --force --seed --no-interaction
+    ;;
 esac
 
 # 9: Execute the given or default command:
