@@ -184,7 +184,10 @@ ENV APP_ENV=production PORT=8000
 # Step 31: Define the image's default command:
 CMD [ "start-web" ]
 
-# Step 32 thru 36: Add label-schema.org labels to identify the build info:
+# Step 32: Step down to an unprivileged user:
+USER www-data
+
+# Step 33 thru 37: Add label-schema.org labels to identify the build info:
 ARG SOURCE_BRANCH="master"
 ARG SOURCE_COMMIT="000000"
 ARG BUILD_DATE="2017-09-26T16:13:26Z"

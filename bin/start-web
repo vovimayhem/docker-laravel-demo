@@ -4,11 +4,11 @@
 # exclusively
 
 configure_nginx() {
-  php -f config/nginx.conf > /etc/nginx/nginx.conf
+  php -f config/nginx.conf > /usr/src/tmp/nginx.conf
 }
 
 configure_php_fpm() {
-  php -f config/php-fpm.conf > /usr/local/etc/php-fpm.conf
+  php -f config/php-fpm.conf > /usr/src/tmp/php-fpm.conf
 }
 
 cache_laravel_config() {
