@@ -32,10 +32,10 @@ build:
 # See https://devcenter.heroku.com/articles/docker-builds-heroku-yml#release-release-phase
 release:
   command:
-    - migrate
+    - run-migrations
   image: web
 
 # Run Phase: The dynos needed to run, including the commands and other details.
 # See https://devcenter.heroku.com/articles/docker-builds-heroku-yml#run-defining-the-process-to-run
 run:
-  web: web
+  web: start-web

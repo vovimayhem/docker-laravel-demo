@@ -181,13 +181,10 @@ COPY --from=builder --chown=www-data:www-data /usr/src /usr/src
 # Step 30: Set the APP_ENV and PORT default values:
 ENV APP_ENV=production PORT=8000
 
-# Step 31: Define our entrypoint script as the image's entrypoint:
-ENTRYPOINT [ "/usr/src/bin/entrypoint.sh" ]
+# Step 31: Define the image's default command:
+CMD [ "start-web" ]
 
-# Step 32: Define the image's default command:
-CMD [ "web" ]
-
-# Step 33 thru 37: Add label-schema.org labels to identify the build info:
+# Step 32 thru 36: Add label-schema.org labels to identify the build info:
 ARG SOURCE_BRANCH="master"
 ARG SOURCE_COMMIT="000000"
 ARG BUILD_DATE="2017-09-26T16:13:26Z"

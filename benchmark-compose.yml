@@ -33,7 +33,7 @@ services:
       - DEVELOPER_UID=${UID:-1000}
       - DEVELOPER_USER=${USER:-you}
     networks: [ "backend" ]
-    command: migrate
+    command: run-migrations
     depends_on: [ "mysql", "redis" ]
 
     # Keep the stdin open, so we can attach to our app container's process
@@ -73,7 +73,7 @@ services:
 
   web:
     <<: *app_base
-    command: web
+    command: start-web
     networks: [ "backend", "frontend" ]
     ports:
     - ${PHP_DEMO_WEB_PORT:-8000}:8000

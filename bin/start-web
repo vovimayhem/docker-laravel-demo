@@ -1,0 +1,21 @@
+#! /bin/sh
+
+# Starts the web process on containers from the release-able docker image
+# exclusively
+
+configure_nginx() {
+  php -f config/nginx.conf > /etc/nginx/nginx.conf
+}
+
+configure_php_fpm() {
+  php -f config/php-fpm.conf > /usr/local/etc/php-fpm.conf
+}
+
+cache_laravel_config() {
+  php artisan config:cache
+}
+
+configure_nginx
+configure_php_fpm
+cache_laravel_config
+supervisord -c config/supervisord.conf

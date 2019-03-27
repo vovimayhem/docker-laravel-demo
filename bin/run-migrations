@@ -1,0 +1,11 @@
+#! /bin/sh
+
+# Runs the database migrations on containers from the release-able docker image
+# exclusively
+
+cache_laravel_config() {
+  php artisan config:cache
+}
+
+cache_laravel_config
+php artisan migrate --force --seed --no-interaction
