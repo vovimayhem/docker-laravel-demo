@@ -55,10 +55,7 @@ services:
       SESSION_DRIVER: redis
       QUEUE_DRIVER: redis
 
-      REDIS_HOST: redis
-      REDIS_PASSWORD: null
-      REDIS_PORT: 6379
-
+      REDIS_URL: redis://redis:6379
       DATABASE_URL: mysql://demo:3x4mpl3P455w0rd@mysql:3306/demo_development
 
       LOG_CHANNEL: stdout

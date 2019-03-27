@@ -2,7 +2,10 @@
 
 $DATABASE_URL = parse_url(
     env('DATABASE_URL', 'mysql://root@localhost:3306/demo_development')
+);
 
+$REDIS_URL = parse_url(
+    env('REDIS_URL', 'redis://localhost:6379')
 );
 
 return [
@@ -117,16 +120,16 @@ return [
         'client' => 'predis',
 
         'default' => [
-            'host' => env('REDIS_HOST', '127.0.0.1'),
-            'password' => env('REDIS_PASSWORD', null),
-            'port' => env('REDIS_PORT', 6379),
+            'host' => $REDIS_URL['host'],
+            'password' => (empty($REDIS_URL['user']) ? null : "{$REDIS_URL['user']}:{$REDIS_URL['pass']}"),
+            'port' => $REDIS_URL['port'],
             'database' => env('REDIS_DB', 0),
         ],
 
         'cache' => [
-            'host' => env('REDIS_HOST', '127.0.0.1'),
+            'host' => $REDIS_URL['host'],
             'password' => env('REDIS_PASSWORD', null),
-            'port' => env('REDIS_PORT', 6379),
+            'port' => $REDIS_URL['port'],
             'database' => env('REDIS_CACHE_DB', 1),
         ],
 
