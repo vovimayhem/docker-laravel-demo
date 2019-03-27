@@ -29,7 +29,7 @@ services:
     networks: [ "backend" ]
 
   test: &app_base
-    image: docker-monterrey/php-demo:development
+    image: vovimayhem/laravel-demo:development
     build:
       context: .
       dockerfile: Dockerfile
