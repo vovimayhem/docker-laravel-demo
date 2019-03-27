@@ -1,0 +1,11 @@
+#! /bin/sh
+
+# Starts a worker process on containers from the release-able docker image
+# exclusively
+
+cache_laravel_config() {
+  php artisan config:cache
+}
+
+cache_laravel_config
+php artisan queue:work "$@"

@@ -159,44 +159,44 @@ RUN rm -rf \
     webpack.mix.js \
     yarn.lock
 
+# Step 25: Re-generate the temporary directories for pids and sockets:
+RUN mkdir -p /usr/src/tmp/pids /usr/src/tmp/sockets
+
 # V: Release stage: ============================================================
 # In this stage, we build the final, deployable Docker image, which will be
 # smaller than the images generated on previous stages:
 
-# Step 25: Start off from the runtime stage image:
+# Step 26: Start off from the runtime stage image:
 FROM runtime AS release
 
-# Steps 26 & 27: Copy the previously-compiled PHP extensions & their
+# Steps 27 & 28: Copy the previously-compiled PHP extensions & their
 # configurations:
 COPY --from=builder /usr/local/lib/php/extensions /usr/local/lib/php/extensions
 COPY --from=builder /usr/local/etc/php/conf.d /usr/local/etc/php/conf.d
 
-# Step 28: Copy from app code from the "builder" stage, which at this point
+# Step 29: Copy from app code from the "builder" stage, which at this point
 # should have the assets (javascript & css) already compiled:
 COPY --from=builder --chown=www-data:www-data /usr/src /usr/src
 
-# Step 29: Set the APP_ENV and PORT default values:
+# Step 30: Set the APP_ENV and PORT default values:
 ENV APP_ENV=production PORT=8000
 
-# Step 30: Generate the temporary directories for pids and sockets:
-RUN su-exec www-data mkdir -p /usr/src/tmp/pids /usr/src/tmp/sockets
+# Step 31: Define the image's default command:
+CMD [ "start-web" ]
 
-# Step 31: Define our entrypoint script as the image's entrypoint:
-ENTRYPOINT [ "/usr/src/bin/entrypoint.sh" ]
-
-# Step 32: Define the image's default command:
-CMD [ "web" ]
+# Step 32: Step down to an unprivileged user:
+USER www-data
 
 # Step 33 thru 37: Add label-schema.org labels to identify the build info:
 ARG SOURCE_BRANCH="master"
 ARG SOURCE_COMMIT="000000"
 ARG BUILD_DATE="2017-09-26T16:13:26Z"
-ARG IMAGE_NAME="vovimayhem/php-demo:latest"
+ARG IMAGE_NAME="vovimayhem/docker-laravel-demo:latest"
 
 LABEL org.label-schema.build-date=$BUILD_DATE \
-      org.label-schema.name="Vovimayhem's Laravel Demo" \
-      org.label-schema.description="Vovimayhem's Laravel Demo" \
-      org.label-schema.vcs-url="https://github.com/docker-monterrey/php-demo.git" \
+      org.label-schema.name="Vovimayhem's Docker Laravel Demo" \
+      org.label-schema.description="Vovimayhem's Docker Laravel Demo" \
+      org.label-schema.vcs-url="https://github.com/vovimayhem/docker-laravel-demo.git" \
       org.label-schema.vcs-ref=$SOURCE_COMMIT \
       org.label-schema.schema-version="1.0.0-rc1" \
       build-target="release" \

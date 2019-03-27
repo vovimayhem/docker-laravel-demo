@@ -23,8 +23,8 @@ services:
       service: redis
     networks: [ "backend" ]
 
-  web: &app_base
-    image: docker-monterrey/php-demo:latest
+  migrate: &app_base
+    image: vovimayhem/docker-laravel-demo:latest
     build:
       context: .
       dockerfile: Dockerfile
@@ -32,10 +32,8 @@ services:
       args:
       - DEVELOPER_UID=${UID:-1000}
       - DEVELOPER_USER=${USER:-you}
-    networks: [ "backend", "frontend" ]
-    ports:
-    - ${PHP_DEMO_WEB_PORT:-8000}:8000
-    command: web
+    networks: [ "backend" ]
+    command: run-migrations
     depends_on: [ "mysql", "redis" ]
 
     # Keep the stdin open, so we can attach to our app container's process
@@ -57,15 +55,8 @@ services:
       SESSION_DRIVER: redis
       QUEUE_DRIVER: redis
 
-      REDIS_HOST: redis
-      REDIS_PASSWORD: null
-      REDIS_PORT: 6379
-
-      DB_CONNECTION: mysql
-      DB_HOST: mysql
-      DB_USERNAME: demo
-      DB_PASSWORD: 3x4mpl3P455w0rd
-      DB_DATABASE: demo_development
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: mysql://demo:3x4mpl3P455w0rd@mysql:3306/demo_development
 
       LOG_CHANNEL: stdout
 
@@ -79,3 +70,10 @@ services:
       PUSHER_APP_ID:
       PUSHER_KEY:
       PUSHER_SECRET:
+
+  web:
+    <<: *app_base
+    command: start-web
+    networks: [ "backend", "frontend" ]
+    ports:
+    - ${PHP_DEMO_WEB_PORT:-8000}:8000

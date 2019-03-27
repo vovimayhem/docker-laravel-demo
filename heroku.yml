@@ -1,0 +1,41 @@
+# The Heroku Manifest. This file defines the app in terms of Heroku resources.
+#
+# In this app, the deployment is done using Docker to generate the image that
+# dynos (containers) will use to run.
+# See https://devcenter.heroku.com/articles/docker-builds-heroku-yml
+
+# Setup Phase: Will make sure all the necessary addons are in place.
+# See https://devcenter.heroku.com/articles/docker-builds-heroku-yml#setup-defining-your-app-s-environment
+setup:
+  addons:
+  - plan: jawsdb
+    as: JAWSDB
+  - plan: heroku-redis
+    as: REDIS
+
+  config: &main_config
+    APP_ENV: production
+    APP_DEBUG: 'true'
+    APP_LOG_LEVEL: debug
+
+# Build Phase: This determines the steps used to build the dynos.
+# See https://devcenter.heroku.com/articles/docker-builds-heroku-yml#build-defining-your-build
+build:
+  docker:
+    # We'll define the Dockerfile & context for the web process:
+    web: Dockerfile
+  config:
+    <<: *main_config
+
+# Release Phase: All the steps needed to run (i.e. rails database migrations)
+# when releasing a new version.
+# See https://devcenter.heroku.com/articles/docker-builds-heroku-yml#release-release-phase
+release:
+  command:
+    - run-migrations
+  image: web
+
+# Run Phase: The dynos needed to run, including the commands and other details.
+# See https://devcenter.heroku.com/articles/docker-builds-heroku-yml#run-defining-the-process-to-run
+run:
+  web: start-web

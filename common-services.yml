@@ -9,12 +9,11 @@ services:
     volumes:
     - mysql_data:/var/lib/mysql
     - ./database/dumps:/database/dumps
+    - ./database/create_databases.sql:/docker-entrypoint-initdb.d/001_create_databases.sql
     environment:
       MYSQL_USER: demo
       MYSQL_PASSWORD: 3x4mpl3P455w0rd
-      MYSQL_DATABASE: demo_development
       MYSQL_ROOT_PASSWORD: 3x4mpl3P455w0rd
-      # MYSQL_ALLOW_EMPTY_PASSWORD: and MYSQL_RANDOM_ROOT_PASSWORD
 
   redis:
     image: redis:3-alpine
