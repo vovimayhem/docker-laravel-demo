@@ -24,7 +24,7 @@ services:
     networks: [ "backend" ]
 
   migrate: &app_base
-    image: vovimayhem/laravel-demo:latest
+    image: vovimayhem/docker-laravel-demo:latest
     build:
       context: .
       dockerfile: Dockerfile

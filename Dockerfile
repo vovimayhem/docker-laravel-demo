@@ -181,25 +181,22 @@ COPY --from=builder --chown=www-data:www-data /usr/src /usr/src
 # Step 30: Set the APP_ENV and PORT default values:
 ENV APP_ENV=production PORT=8000
 
-# Step 31: Generate the temporary directories for pids and sockets:
-RUN su-exec www-data mkdir -p /usr/src/tmp/pids /usr/src/tmp/sockets
-
-# Step 32: Define our entrypoint script as the image's entrypoint:
+# Step 31: Define our entrypoint script as the image's entrypoint:
 ENTRYPOINT [ "/usr/src/bin/entrypoint.sh" ]
 
-# Step 33: Define the image's default command:
+# Step 32: Define the image's default command:
 CMD [ "web" ]
 
-# Step 34 thru 38: Add label-schema.org labels to identify the build info:
+# Step 33 thru 37: Add label-schema.org labels to identify the build info:
 ARG SOURCE_BRANCH="master"
 ARG SOURCE_COMMIT="000000"
 ARG BUILD_DATE="2017-09-26T16:13:26Z"
-ARG IMAGE_NAME="vovimayhem/php-demo:latest"
+ARG IMAGE_NAME="vovimayhem/docker-laravel-demo:latest"
 
 LABEL org.label-schema.build-date=$BUILD_DATE \
-      org.label-schema.name="Vovimayhem's Laravel Demo" \
-      org.label-schema.description="Vovimayhem's Laravel Demo" \
-      org.label-schema.vcs-url="https://github.com/docker-monterrey/php-demo.git" \
+      org.label-schema.name="Vovimayhem's Docker Laravel Demo" \
+      org.label-schema.description="Vovimayhem's Docker Laravel Demo" \
+      org.label-schema.vcs-url="https://github.com/vovimayhem/docker-laravel-demo.git" \
       org.label-schema.vcs-ref=$SOURCE_COMMIT \
       org.label-schema.schema-version="1.0.0-rc1" \
       build-target="release" \
