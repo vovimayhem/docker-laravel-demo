@@ -1,37 +1,29 @@
+# Ignore Docker files to avoid invalidating the cache:
 Dockerfile
 docker-compose.yml
-common-services.yml
-benchmark-compose.yml
-stack.yml
+docker-compose.override.yml
 .dockerignore
 
 # Ignore dotenv files
-/.env
-
-# Ignore shell history files
-/.*_hist*
+**/*.env
+!**/*.env.example
+!**/*example*.env
 
 # Ignore composer vendor directory:
-/vendor
+vendor
 
-# Ignore the local node_modules entirely:
-/node_modules
+# Ignore the node_modules directory:
+node_modules
 
 # Ignore git files
-/.git
-/.gitignore
-/.gitattributes
+.git
+.gitattributes
+.gitconfig
+.gitignore
 
 # Ignore compiled css/js files
 /public/css
 /public/js
 
-# Ignore node HOME artifacts:
-/.config
-/.npm
-
 # Ignore tmp
-/tmp/*
-
-# Prevent our custom 'bin/composer' script from making it to the build image:
-/bin/composer
+tmp/*

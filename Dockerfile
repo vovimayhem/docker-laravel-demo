@@ -1,203 +1,198 @@
 # Other articles read on my research about laravel + Docker:
 #  - https://laravel-news.com/multi-stage-docker-builds-for-laravel
 #  - https://www.pascallandau.com/blog/php-php-fpm-and-nginx-on-docker-in-windows-10/
-#
+
 # I: Runtime Stage: ============================================================
 # This is the stage where we build the runtime base image, which is used as the
 # common ancestor by the rest of the stages, and contains the minimal runtime
 # dependencies required for the application to run in production:
 
-# Step 1: Use the official PHP 7.3.x Alpine image as base:
-FROM php:7.3-fpm-alpine AS runtime
+# Use the official PHP 8.0.3 fpm buster image as base:
+FROM php:8.0.3-fpm-buster AS runtime
 
-# Step 2: We'll set '/usr/src' path as the working directory:
-WORKDIR /usr/src
+# Install runtime dependency packages
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    libmariadb3 \
+    libzip4 \
+    openssl \
+    supervisor \
+ && rm -rf /var/lib/apt/lists/*
 
-# Step 3: We'll set the following environment variables:
-# - The working dir as HOME - helps us to preserve the shell history
-# - A directory outside of our workdir as COMPOSER_HOME
-# - Add the app's executables, the project's PHP vendored executables, and the
-#   global PHP vendored executables to $PATH:
-ENV HOME=/usr/src \
-    COMPOSER_HOME=/usr/local/composer \
-    PATH=/usr/src/bin:/usr/src/vendor/bin:/usr/local/composer/vendor/bin:$PATH
+# Stage 2: Testing =============================================================
 
-# Step 4: Install the common runtime dependencies:
-RUN apk add --no-cache \
-  ca-certificates \
-  less \
-  libzip \
-  mariadb-client \
-  nginx \
-  openssl \
-  supervisor \
-  su-exec \
-  tzdata \
-  zlib
+FROM runtime AS testing
 
-# II: Development Stage: =======================================================
-# In this stage we'll build the image used for development, including compilers,
-# and development libraries. This is also a first step for building a releasable
-# Docker image:
-
-# Step 5: Start off from the "runtime" stage:
-FROM runtime AS development
-
-# Step 6: Install the development dependency packages with alpine package
-# manager:
-RUN apk add --no-cache \
-    build-base \
-    chromium \
-    chromium-chromedriver \
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
     git \
+    libmariadb-dev \
     libzip-dev \
-    mariadb-dev \
-    nodejs \
-    npm \
-    yarn \
-    zlib-dev
+    unzip \
+    zip
 
-# Step 7: Fix npm uid-number error
-# - see https://github.com/npm/uid-number/issues/7
-RUN npm config set unsafe-perm true
-
-# Step 8: Install the 'check-dependencies' node package:
-RUN npm install -g check-dependencies
-
-# Step 9: Install PHP packages required by laravel:
-RUN set -ex && docker-php-ext-install \
-  bcmath \
-  pdo_mysql \
-  zip
-
-# Step 10: Install composer:
 RUN set -ex \
- && export COMPOSER_VERSION=1.8.4 \
- && export COMPOSER_SHA256=1722826c8fbeaf2d6cdd31c9c9af38694d6383a0f2bf476fe6bbd30939de058a \
- && curl -o /usr/local/bin/composer "https://getcomposer.org/download/${COMPOSER_VERSION}/composer.phar" \
- && echo "${COMPOSER_SHA256}  /usr/local/bin/composer" | sha256sum -c - \
- && chmod a+x /usr/local/bin/composer
+ && docker-php-ext-install \
+    bcmath \
+    pdo_mysql \
+    zip
 
-# Step 11 & 12: Define the arguments (with defaults) used to replicate the
-# developer's user on the Docker Host, to enable generating files from inside
-# the container (i.e. running php artisan make:model) with the host's user as
-# their owner:
-ARG DEVELOPER_USER="you"
-ARG DEVELOPER_UID="1000"
+# Install Node:
+COPY --from=node:lts-buster-slim /opt/yarn-* /opt/yarn/
+COPY --from=node:lts-buster-slim /usr/local/bin/node /usr/local/bin/node
+COPY --from=node:lts-buster-slim /usr/local/include/node /usr/local/include/node
+COPY --from=node:lts-buster-slim /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -s /opt/yarn/bin/yarn /usr/local/bin/yarn \
+ && ln -s /usr/local/bin/node /usr/local/bin/nodejs \
+ && ln -s /opt/yarn/bin/yarnpkg /usr/local/bin/yarnpkg \
+ && ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+ && ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
 
-# Step 13: Add the host user as a user inside the image:
-RUN adduser -D -u $DEVELOPER_UID $DEVELOPER_USER \
- && addgroup $DEVELOPER_USER wheel
+# Install PHP composer
+COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
 
-# Step 14: Make the developer username as an environment variable:
-ENV DEVELOPER_USER=$DEVELOPER_USER
+# Receive the app path as an argument:
+ARG APP_PATH=/srv/demo
 
-# Step 15: Create the COMPOSER_HOME directory (where the global packages will be
-# in):
-RUN mkdir -p $COMPOSER_HOME \
- && chgrp wheel $COMPOSER_HOME \
- && chmod g+rws $COMPOSER_HOME
+# Receive the developer user's UID and USER:
+ARG DEVELOPER_UID=1000
+ARG DEVELOPER_USERNAME=you
 
-# IV: Testing stage: ===========================================================
-# In this stage we'll add the current code from the project's source, so we can
-# run tests with the code.
-# Step 16: Start off from the development stage image:
-FROM development AS testing
+# Replicate the developer user in the development image:
+RUN addgroup --gid ${DEVELOPER_UID} ${DEVELOPER_USERNAME} \
+ ;  useradd -r -m -u ${DEVELOPER_UID} --gid ${DEVELOPER_UID} \
+    --shell /bin/bash -c "Developer User,,," ${DEVELOPER_USERNAME}
 
-# Step 17: Copy the composer & npm/yarn files, in preparation to run `composer
-# install` and `yarn install`:
-COPY composer.* package.json yarn.lock /usr/src/
+# Ensure the developer user's home directory and APP_PATH are owned by him/her:
+# (A workaround to a side effect of setting WORKDIR before creating the user)
+RUN userhome=$(eval echo ~${DEVELOPER_USERNAME}) \
+ && chown -R ${DEVELOPER_USERNAME}:${DEVELOPER_USERNAME} $userhome \
+ && mkdir -p ${APP_PATH} \
+ && chown -R ${DEVELOPER_USERNAME}:${DEVELOPER_USERNAME} ${APP_PATH}
 
-# Step 18: Install the project's PHP libraries running `composer install`.
-# As we're running this as root, we added the `--no-plugins` and `--no-scripts`
-# flags - see https://getcomposer.org/doc/faqs/how-to-install-untrusted-packages-safely.md
-RUN mkdir -p /usr/src/vendor \
+# Add the app's "bin/" directory to PATH:
+ENV PATH=${APP_PATH}/bin:$PATH
+
+# Set the app path as the working directory:
+WORKDIR ${APP_PATH}
+
+# Change to the developer user:
+USER ${DEVELOPER_USERNAME}
+
+# Copy the composer files and run `composer install` - note that the autoloader
+# generation will be disabled, as at this point there will be no code yet, hence
+# some files required for the autoloader generation are missing:
+COPY --chown=${DEVELOPER_USERNAME} composer.* ${APP_PATH}/
+RUN mkdir -p ${APP_PATH}/vendor \
  && composer install \
-    --ignore-platform-reqs \
     --no-autoloader \
-    --no-interaction \
-    --no-plugins \
     --no-scripts \
+    --no-interaction \
     --prefer-dist
+ENV PATH=${APP_PATH}/vendor/bin:$PATH
 
-# Step 19: Install the project's npm libraries running `yarn install`:
-RUN mkdir -p /usr/src/node_modules && yarn install
+# Copy the node files and run `yarn install`:
+COPY --chown=${DEVELOPER_USERNAME} package.json yarn.lock ${APP_PATH}/
+RUN yarn install
 
-# Step 20: Copy the rest of the application code
-COPY . /usr/src/
+# Stage 3: Development =========================================================
+# In this stage we'll add the packages, libraries and tools required in the
+# day-to-day development process.
 
-# IV: Builder stage: ===========================================================
+# Use the "testing" stage as base:
+FROM testing AS development
+
+# Receive the developer username again, as ARGS won't persist between stages on
+# non-buildkit builds:
+ARG DEVELOPER_USERNAME=you
+
+# Change to root user to install the development packages:
+USER root
+
+# Install sudo, along with any other tool required at development phase:
+RUN apt-get install -y --no-install-recommends \
+  # Adding bash autocompletion as git without autocomplete is a pain...
+  bash-completion \
+  # gpg & gpgconf is used to get Git Commit GPG Signatures working inside the
+  # VSCode devcontainer:
+  gpg \
+  gpgconf \
+  openssh-client \
+  # Vim will be used to edit files when inside the container (git, etc):
+  vim \
+  # Sudo will be used to install/configure system stuff if needed during dev:
+  sudo
+
+# Add the developer user to the sudoers list:
+RUN echo "${DEVELOPER_USERNAME} ALL=(ALL) NOPASSWD:ALL" | tee "/etc/sudoers.d/${DEVELOPER_USERNAME}"
+
+# Install xdebug (you can specify a version instead: xdebug-2.7.2)
+RUN pecl install xdebug && docker-php-ext-enable xdebug
+ENV XDEBUG_MODE=debug XDEBUG_CONFIG="client_host=host.docker.internal client_port=9000"
+
+# Change back to the developer user:
+USER ${DEVELOPER_USERNAME}
+
+# Stage 4: Builder =============================================================
 # In this stage we'll compile assets coming from the project's source, remove
 # development libraries, and other cleanup tasks, in preparation for the final
 # "release" image:
 
-# Step 21: Start off from the development stage image:
+# Start off from the development stage image:
 FROM testing AS builder
 
-# Step 22: Precompile assets and remove compiled source code:
+# Receive the developer username and the app path arguments again, as ARGS
+# won't persist between stages on non-buildkit builds:
+ARG DEVELOPER_USERNAME=you
+ARG APP_PATH=/srv/rails-google-cloud-demo
+
+# Copy the full contents of the project:
+COPY --chown=${DEVELOPER_USERNAME} . ${APP_PATH}/
+
+# Precompile assets and remove compiled source code:
 RUN yarn production && rm -rf resources/js resources/sass
 
-# Step 23: Remove installed composer libraries that belong to the development
+# Remove installed composer libraries that belong to the development
 # group - we'll copy the remaining composer libraries into the deployable image
 # on the next stage - see https://laravel.com/docs/5.7/deployment#optimization.
 # Notice that we're removing our 'composer' wrapper script, as we no longer need
 # to switch from root user as we should during development time:
-RUN rm -rf bin/composer \
- && composer install --optimize-autoloader --no-dev
+RUN composer install --optimize-autoloader --no-dev
 
-# Step 24: Remove files not used on release image:
+# Remove files not used on release image:
 RUN rm -rf \
-    .config \
-    .env.example \
-    .npm \
-    .npmrc \
-    bin/dev-entrypoint.sh \
+    .env.example \
+    bin/dev-entrypoint \
     node_modules \
-    php.tar.* \
-    tests \
     tmp/* \
     webpack.mix.js \
     yarn.lock
 
-# Step 25: Re-generate the temporary directories for pids and sockets:
-RUN mkdir -p /usr/src/tmp/pids /usr/src/tmp/sockets
-
-# V: Release stage: ============================================================
+# Stage 5: Release =============================================================
 # In this stage, we build the final, deployable Docker image, which will be
 # smaller than the images generated on previous stages:
 
-# Step 26: Start off from the runtime stage image:
+# Start off from the runtime stage image:
 FROM runtime AS release
 
-# Steps 27 & 28: Copy the previously-compiled PHP extensions & their
-# configurations:
+# Receive the app path as an argument:
+ARG APP_PATH=/srv/demo
+
+# Copy the previously-compiled PHP extensions & their configurations:
 COPY --from=builder /usr/local/lib/php/extensions /usr/local/lib/php/extensions
 COPY --from=builder /usr/local/etc/php/conf.d /usr/local/etc/php/conf.d
 
-# Step 29: Copy from app code from the "builder" stage, which at this point
-# should have the assets (javascript & css) already compiled:
-COPY --from=builder --chown=www-data:www-data /usr/src /usr/src
+# Copy from app code from the "builder" stage, which at this point should have
+# the assets (javascript & css) already compiled:
+COPY --from=builder --chown=www-data:www-data ${APP_PATH} /srv/demo
 
-# Step 30: Set the APP_ENV and PORT default values:
+# Set the APP_ENV and PORT default values:
 ENV APP_ENV=production PORT=8000
 
-# Step 31: Define the image's default command:
+# Define the image's default command:
 CMD [ "start-web" ]
 
-# Step 32: Step down to an unprivileged user:
+# Step down to an unprivileged user:
 USER www-data
-
-# Step 33 thru 37: Add label-schema.org labels to identify the build info:
-ARG SOURCE_BRANCH="master"
-ARG SOURCE_COMMIT="000000"
-ARG BUILD_DATE="2017-09-26T16:13:26Z"
-ARG IMAGE_NAME="vovimayhem/docker-laravel-demo:latest"
-
-LABEL org.label-schema.build-date=$BUILD_DATE \
-      org.label-schema.name="Vovimayhem's Docker Laravel Demo" \
-      org.label-schema.description="Vovimayhem's Docker Laravel Demo" \
-      org.label-schema.vcs-url="https://github.com/vovimayhem/docker-laravel-demo.git" \
-      org.label-schema.vcs-ref=$SOURCE_COMMIT \
-      org.label-schema.schema-version="1.0.0-rc1" \
-      build-target="release" \
-      build-branch=$SOURCE_BRANCH

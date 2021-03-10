@@ -1,0 +1,68 @@
+
+version: "3.7"
+
+volumes:
+  vendor:
+  node_modules:
+
+services:
+  web: &app_base
+    image: vovimayhem/laravel-demo:development
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+      args:
+        APP_PATH: ${PWD:-/srv/demo}
+        DEVELOPER_UID: ${UID:-1000}
+        DEVELOPER_USER: ${USER:-you}
+    depends_on:
+      - mysql
+      - redis
+      - webpack
+    working_dir: ${PWD:-/srv/demo}
+    ports:
+      - ${DEMO_WEB_PORT:-8000}:8000
+    volumes:
+      # Mount our app code into the "/usr/src" folder at our app containers:
+      - .:${PWD:-/srv/demo}
+      - node_modules:${PWD:-/srv/demo}/node_modules
+      - vendor:${PWD:-/srv/demo}/vendor
+
+    # entrypoint: /usr/src/bin/dev-entrypoint
+    # command: phpunit-watcher watch
+
+    # Keep the stdin open, so we can attach to our app container's process
+    # and do things such as byebug, etc:
+    stdin_open: true
+
+    # Enable sending signals (CTRL+C, CTRL+P + CTRL+Q) into the container:
+    tty: true
+
+    environment: &app_env
+      APP_ENV: test
+      APP_DEBUG: 'true'
+      APP_LOG_LEVEL: debug
+      APP_URL: http://localhost:8000
+
+      APP_KEY: base64:5aoHpAok0Sjdq2Nhx44MvDzMcnAqZ/qzRxfHG++S8wU=
+
+      CACHE_DRIVER: redis
+      SESSION_DRIVER: redis
+      QUEUE_DRIVER: redis
+
+      REDIS_URL: redis://redis:6379
+
+      DATABASE_URL: mysql://demo:3x4mpl3P455w0rd@mysql:3306/demo_development
+
+      LOG_CHANNEL: stdout
+
+      # Configure Xdebug:
+      XDEBUG_MODE: debug
+      XDEBUG_CONFIG: "client_host=host.docker.internal client_port=9000"
+
+  webpack:
+    <<: *app_base
+    depends_on: []
+    # We can also use 'watch-poll' for those running on VirtualBox...
+    command: yarn run ${MIX_WATCH_TASK:-watch}
