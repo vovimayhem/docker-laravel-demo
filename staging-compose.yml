@@ -1,0 +1,62 @@
+# This file is an override to the default 'docker-compose.yml' file, and is
+# intended to be used in CI contexts (drone, github actions, semaphore, etc).
+#
+# The most important thing it does is re-uses the services defined in the main
+# file (docker-compose.yml) such as postgres, pubsub, etc.
+#
+# To make it work, be sure you use an alias for docker-compose called
+# `staging-compose`. You can create one like this:
+# `alias staging-compose="docker-compose --file docker-compose.yml --file staging-compose.yml"`
+# our apps:
+version: "3.7"
+
+services:
+  web:
+    image: vovimayhem/laravel-demo:latest
+    build:
+      context: .
+      target: release
+      args:
+        APP_PATH: ${PWD:-/srv/demo}
+        DEVELOPER_UID: ${UID:-1000}
+        DEVELOPER_USER: ${USER:-you}
+    ports:
+      - ${DEMO_WEB_PORT:-3000}:3000
+
+    # Keep the stdin open, so we can attach to our app container's process
+    # and do things such as byebug, etc:
+    stdin_open: true
+
+    # Enable sending signals (CTRL+C, CTRL+P + CTRL+Q) into the container:
+    tty: true
+
+    # Specify environment variables available for our app containers. We'll
+    # leave a YML anchor in case we need to override or add more variables if
+    # needed on each app service:
+    environment:
+      APP_ENV: production
+      APP_DEBUG: 'true'
+      APP_LOG_LEVEL: debug
+      APP_URL: http://localhost:8000
+
+      APP_KEY: base64:5aoHpAok0Sjdq2Nhx44MvDzMcnAqZ/qzRxfHG++S8wU=
+
+      CACHE_DRIVER: redis
+      SESSION_DRIVER: redis
+      QUEUE_DRIVER: redis
+
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: mysql://demo:3x4mpl3P455w0rd@mysql:3306/demo_development
+
+      LOG_CHANNEL: stdout
+
+      MAIL_DRIVER: smtp
+      MAIL_HOST: mailtrap.io
+      MAIL_PORT: 2525
+      MAIL_USERNAME: null
+      MAIL_PASSWORD: null
+      MAIL_ENCRYPTION: null
+
+      PUSHER_APP_ID:
+      PUSHER_KEY:
+      PUSHER_SECRET:

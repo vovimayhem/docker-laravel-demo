@@ -1,0 +1,66 @@
+version: "3.7"
+
+volumes:
+  node_modules:
+  vendor:
+
+services:
+   app:
+    image: vovimayhem/laravel-demo:development
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+      args:
+        APP_PATH: ${PWD:-/srv/demo}
+        DEVELOPER_UID: ${UID:-1000}
+        DEVELOPER_USERNAME: ${USER:-you}
+    working_dir: ${PWD:-/srv/demo}
+    entrypoint: ${PWD:-/srv/demo}/bin/dev-entrypoint
+    depends_on:
+      - mysql
+      - redis
+    volumes:
+      - .:${PWD:-/srv/demo}
+      - node_modules:${PWD:-/srv/demo}/node_modules
+      - vendor:${PWD:-/srv/demo}/vendor
+    ports:
+      - ${DEMO_WEB_PORT:-8000}:8000
+
+    # Keep the stdin open, so we can attach to our app container's process
+    # and do things such as byebug, etc:
+    stdin_open: true
+
+    # Enable sending signals (CTRL+C, CTRL+P + CTRL+Q) into the container:
+    tty: true
+
+    # The command we want to execute by default when running the container
+    # [Optional] Required for ptrace-based debuggers like C++, Go, and Rust
+    cap_add:
+      - SYS_PTRACE
+      - NET_ADMIN
+    security_opt:
+      - seccomp:unconfined
+
+    command: vscode-wait # Éste comando está definido en `bin/dev-entrypoint`
+
+    environment:
+      APP_ENV: test
+      APP_DEBUG: 'true'
+      APP_LOG_LEVEL: debug
+      APP_URL: http://localhost:8000
+
+      APP_KEY: base64:5aoHpAok0Sjdq2Nhx44MvDzMcnAqZ/qzRxfHG++S8wU=
+
+      CACHE_DRIVER: redis
+      SESSION_DRIVER: redis
+      QUEUE_DRIVER: redis
+
+      REDIS_URL: redis://redis:6379
+
+      DATABASE_URL: mysql://demo:3x4mpl3P455w0rd@mysql:3306/demo_development
+
+      LOG_CHANNEL: stdout
+
+      # Configure Xdebug:
+      XDEBUG_SESSION: VSCODE

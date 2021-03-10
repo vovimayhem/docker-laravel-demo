@@ -1,113 +1,30 @@
 # Other articles read on my research about laravel + Docker:
 #  - https://laravel-news.com/multi-stage-docker-builds-for-laravel
 #  - https://www.pascallandau.com/blog/php-php-fpm-and-nginx-on-docker-in-windows-10/
-version: "2.4"
+version: "3.7"
 
 volumes:
   mysql_data:
   redis_data:
-  app_node_modules:
-  composer_vendor:
-
-networks:
-  backend:
-  frontend:
 
 services:
-  # For the MySQL and Redis services, we'll use the definitions found in
-  # `common-services.yml`:
   mysql:
-    extends:
-      file: common-services.yml
-      service: mysql
-    networks: [ "backend" ]
+    image: mysql:5.7
+    ports:
+      - ${DEMO_MYSQL_PORT:-3306}:3306
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/dumps:/database/dumps
+      - ./database/create_databases.sql:/docker-entrypoint-initdb.d/001_create_databases.sql
+    environment:
+      MYSQL_USER: demo
+      MYSQL_PASSWORD: 3x4mpl3P455w0rd
+      MYSQL_ROOT_PASSWORD: 3x4mpl3P455w0rd
 
   redis:
-    extends:
-      file: common-services.yml
-      service: redis
-    networks: [ "backend" ]
-
-  test: &app_base
-    image: vovimayhem/docker-laravel-demo:development
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: development
-      args:
-      - DEVELOPER_UID=${UID:-1000}
-      - DEVELOPER_USER=${USER:-you}
-    networks: [ "backend", "frontend" ]
-    depends_on: [ "mysql", "redis" ]
-    volumes:
-    # Mount our app code into the "/usr/src" folder at our app containers:
-    - .:/usr/src
-
-    # Replace the local 'node_modules' folder with a Docker volume, so we can
-    # run the frontend app either from the host (i.e. macOS) or using containers
-    # without having one or another clobbering the npm packages or conflicting
-    # versions for macOS / Linux:
-    - app_node_modules:/usr/src/node_modules
-
-    # Replace the local 'vendor' folder with another Docker volume, so we can
-    # run the frontend app either from the host (i.e. macOS) or using containers
-    # without having one or another clobbering the npm packages or conflicting
-    # versions for macOS / Linux:
-    - composer_vendor:/usr/src/vendor
-
-    entrypoint: /usr/src/bin/dev-entrypoint.sh
-    command: phpunit-watcher watch
-
-    # Keep the stdin open, so we can attach to our app container's process
-    # and do things such as byebug, etc:
-    stdin_open: true
-
-    # Enable sending signals (CTRL+C, CTRL+P + CTRL+Q) into the container:
-    tty: true
-
-    environment: &app_env
-      APP_ENV: test
-      APP_DEBUG: 'true'
-      APP_LOG_LEVEL: debug
-      APP_URL: http://localhost:8000
-
-      APP_KEY: base64:5aoHpAok0Sjdq2Nhx44MvDzMcnAqZ/qzRxfHG++S8wU=
-
-      CACHE_DRIVER: redis
-      SESSION_DRIVER: redis
-      QUEUE_DRIVER: redis
-
-      REDIS_URL: redis://redis:6379
-
-      DATABASE_URL: mysql://demo:3x4mpl3P455w0rd@mysql:3306/demo_development
-
-      LOG_CHANNEL: stdout
-
-      MAIL_DRIVER: smtp
-      MAIL_HOST: mailtrap.io
-      MAIL_PORT: 2525
-      MAIL_USERNAME: null
-      MAIL_PASSWORD: null
-      MAIL_ENCRYPTION: null
-
-      PUSHER_APP_ID:
-      PUSHER_KEY:
-      PUSHER_SECRET:
-
-  web:
-    <<: *app_base
+    image: redis:6-alpine
     ports:
-    - ${PHP_DEMO_WEB_PORT:-8000}:8000
-    command: php artisan serve --host=0.0.0.0 --port=8000
-    depends_on: [ "mysql", "redis", "webpack" ]
-    environment:
-      <<: *app_env
-      APP_ENV: development
-      APP_KEY: base64:5aoHpAok0Sjdq2Nhx44MvDzMcnAqZ/qzRxfHG++S8wU=
-      DB_DATABASE: demo_development
-
-  webpack:
-    <<: *app_base
-    depends_on: []
-    # We can also use 'watch-poll' for those running on VirtualBox...
-    command: yarn run ${MIX_WATCH_TASK:-watch}
+      - ${DEMO_REDIS_PORT:-6379}:6379
+    volumes:
+      - redis_data:/var/lib/redis
+    command: redis-server --appendonly yes
